@@ -1,40 +1,58 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, StyleSheet, Text, Alert } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../App';
 import { useNavigation } from '@react-navigation/native';
 
-type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
-
 const LoginScreen = () => {
-  const navigation = useNavigation<LoginScreenNavigationProp>();
-  const [email, setEmail] = useState('');
+  const navigation = useNavigation();
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('로그인 실패', '이메일과 비밀번호를 입력해주세요.');
-      return;
-    }
-    await AsyncStorage.setItem('user', JSON.stringify({ email }));
-    navigation.replace('Home');
+    const data = await AsyncStorage.getItem(`user:${username}`);
+    if (!data) return Alert.alert('로그인 실패', '존재하지 않는 아이디입니다.');
+    const parsed = JSON.parse(data);
+    if (parsed.password !== password) return Alert.alert('로그인 실패', '비밀번호가 틀렸습니다.');
+
+    await AsyncStorage.setItem('user', username); // 로그인 상태 저장
+    navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>로그인</Text>
-      <TextInput style={styles.input} placeholder="이메일" value={email} onChangeText={setEmail} />
-      <TextInput style={styles.input} placeholder="비밀번호" value={password} secureTextEntry onChangeText={setPassword} />
+      <TextInput
+        style={styles.input}
+        placeholder="아이디"
+        value={username}
+        onChangeText={setUsername}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="비밀번호"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
       <Button title="로그인" onPress={handleLogin} />
+      <View style={styles.links}>
+        <Text style={styles.linkText} onPress={() => navigation.navigate('SignUp')}>
+          회원가입
+        </Text>
+        <Text style={styles.linkText} onPress={() => navigation.navigate('ForgotPassword')}>
+          비밀번호 찾기
+        </Text>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 24 },
-  title: { fontSize: 28, marginBottom: 20, textAlign: 'center' },
-  input: { borderWidth: 1, borderColor: '#ccc', padding: 12, marginBottom: 12, borderRadius: 8 },
+  title: { fontSize: 28, textAlign: 'center', marginBottom: 20 },
+  input: { borderWidth: 1, padding: 12, marginBottom: 12, borderRadius: 8 },
+  links: { marginTop: 20, alignItems: 'center' },
+  linkText: { color: '#007AFF', marginTop: 8, fontSize: 14, textDecorationLine: 'underline' }
 });
 
 export default LoginScreen;
