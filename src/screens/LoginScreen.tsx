@@ -1,22 +1,25 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import { navigationRef } from '../navigation/NavigationService';
 
 const LoginScreen = () => {
-  const navigation = useNavigation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
-    if (!username) return;
+    if (!username.trim()) return;
 
-    await AsyncStorage.setItem('user', username);
+    await AsyncStorage.setItem('user', username || 'default');
 
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Home' }],
-    });
+    if (navigationRef.isReady()) {
+      navigationRef.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
+    } else {
+      console.warn('navigationRef is not ready');
+    }
   };
 
   return (
@@ -37,10 +40,10 @@ const LoginScreen = () => {
       />
       <Button title="로그인" onPress={handleLogin} />
       <View style={styles.links}>
-        <Text style={styles.linkText} onPress={() => navigation.navigate('SignUp')}>
+        <Text style={styles.linkText} onPress={() => navigationRef.navigate('SignUp')}>
           회원가입
         </Text>
-        <Text style={styles.linkText} onPress={() => navigation.navigate('ForgotPassword')}>
+        <Text style={styles.linkText} onPress={() => navigationRef.navigate('ForgotPassword')}>
           비밀번호 찾기
         </Text>
       </View>
@@ -53,7 +56,12 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, textAlign: 'center', marginBottom: 20 },
   input: { borderWidth: 1, padding: 12, marginBottom: 12, borderRadius: 8 },
   links: { marginTop: 20, alignItems: 'center' },
-  linkText: { color: '#007AFF', marginTop: 8, fontSize: 14, textDecorationLine: 'underline' },
+  linkText: {
+    color: '#007AFF',
+    marginTop: 8,
+    fontSize: 14,
+    textDecorationLine: 'underline',
+  },
 });
 
 export default LoginScreen;

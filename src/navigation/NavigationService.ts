@@ -1,5 +1,17 @@
-// src/navigation/NavigationService.ts
 import { createNavigationContainerRef } from '@react-navigation/native';
-import type { RootStackParamList } from '../../App'; // 타입 경로 맞춰줘야 함
+
+export type RootStackParamList = {
+  Login: undefined;
+  SignUp: undefined;
+  ForgotPassword: undefined;
+  Home: undefined;
+  MemoList: undefined;
+  MemoFolderView: { folderId: string };  // ✅ 추가됨
+  MemoEditor: {
+    folderId: string;
+    memoId?: string;
+    memo?: string;
+  };
+};
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
