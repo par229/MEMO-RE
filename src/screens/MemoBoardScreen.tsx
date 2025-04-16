@@ -10,13 +10,13 @@ import {
   Dimensions,
   ScrollView,
   Animated,
+  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute } from '@react-navigation/native';
 
 const PASTEL_COLORS = [
   '#FFEBEE', '#E1F5FE', '#E8F5E9', '#FFF3E0', '#F3E5F5',
-
 ];
 
 const getContrastColor = (hex: string) => {
@@ -30,8 +30,6 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 let lastCreatedMemoId: string | null = null;
-
-// ... Memo type remains unchanged
 
 const MemoBoardScreen = () => {
   const { folderId } = useRoute().params as RouteParams;
@@ -100,6 +98,20 @@ const MemoBoardScreen = () => {
   const deleteMemo = (id: string) => {
     saveMemos(memos.filter((m) => m.id !== id));
   };
+
+  const handleComplete = (memoId: string) => {
+  const memo = memos.find(m => m.id === memoId);
+  if (!memo) return;
+
+  const today = formatDate().slice(0, 10);
+  const boardMemosToday = memos.filter(m => m.timestamp?.startsWith(today));
+  const boardFirstToday = boardMemosToday.reduce((first, m) =>
+    (!first || m.timestamp < first.timestamp) ? m : first, null as Memo | null);
+
+  if (boardFirstToday?.id === memoId) {
+    Alert.alert('오늘도 생각이 이어졌어요!');
+  }
+};
 
   useEffect(() => {
     loadMemos();
@@ -192,6 +204,9 @@ const MemoBoardScreen = () => {
               value={memo.content}
               onChangeText={(text) => updateMemo(memo.id, { content: text })}
             />
+            <TouchableOpacity style={styles.completeButton} onPress={() => handleComplete(memo.id)}>
+              <Text style={{ color: 'white' }}>완료</Text>
+            </TouchableOpacity>
             <View {...resizeResponder.panHandlers} style={styles.resizer} />
           </MemoWrapper>
         );
@@ -273,5 +288,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  completeButton: {
+    marginTop: 8,
+    backgroundColor: '#007AFF',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    alignSelf: 'center',
+    borderRadius: 6,
+  },
 });
+
 export default MemoBoardScreen;
