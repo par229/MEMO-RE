@@ -23,9 +23,9 @@ const LoginScreen = () => {
       });
 
       if (response.status === 200) {
-        const userId = response.data.id; // 백엔드에서 id를 돌려줘야 함
+        const userId = response.data.id;
         Alert.alert('로그인 성공', '환영합니다!');
-        navigation.navigate('BoardListScreen', { userId });
+        navigation.navigate('BoardList', { userId });
       }
     } catch (error: any) {
       Alert.alert('로그인 실패', error.response?.data?.error || '서버 오류');
