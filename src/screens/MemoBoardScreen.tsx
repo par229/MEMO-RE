@@ -1,181 +1,134 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  TextInput,
-  StyleSheet,
-  PanResponder,
   Text,
-  TouchableOpacity,
-  Pressable,
-  Dimensions,
+  TextInput,
   ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
   Animated,
-  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute } from '@react-navigation/native';
 
-const PASTEL_COLORS = [
-  '#FFEBEE', '#E1F5FE', '#E8F5E9', '#FFF3E0', '#F3E5F5',
-];
-
-const getContrastColor = (hex: string) => {
-  const r = 255 - parseInt(hex.substring(1, 3), 16);
-  const g = 255 - parseInt(hex.substring(3, 5), 16);
-  const b = 255 - parseInt(hex.substring(5, 7), 16);
-  return `rgb(${r},${g},${b})`;
-};
-
+const PASTEL_COLORS = ['#FFEBEE', '#E1F5FE', '#E8F5E9', '#FFF3E0', '#F3E5F5'];
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-
-let lastCreatedMemoId: string | null = null;
 
 const MemoBoardScreen = () => {
-  const { folderId } = useRoute().params as RouteParams;
-  const [memos, setMemos] = useState<Memo[]>([]);
-  const [activeInputId, setActiveInputId] = useState<string | null>(null);
+  const { folderId } = useRoute().params;
+  const [memos, setMemos] = useState([]);
   const [search, setSearch] = useState('');
-  const [highlightedMemoId, setHighlightedMemoId] = useState<string | null>(null);
-  const inputRefs = useRef<Record<string, TextInput>>({});
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [message, setMessage] = useState(null);
+  const [favoritesVisible, setFavoritesVisible] = useState(false);
+  const scrollViewRef = useRef();
 
   const formatDate = () => {
     const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
+    const pad = n => String(n).padStart(2, '0');
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
   };
 
-  const loadMemos = async () => {
-    const data = await AsyncStorage.getItem(`memo-board:${folderId}`);
-    if (data) {
-      const parsed = JSON.parse(data);
-      setMemos(parsed);
-      if (parsed.length > 0) {
-        const latest = parsed.reduce((a, b) => (a.timestamp > b.timestamp ? a : b));
-        setHighlightedMemoId(latest.id);
-        Animated.sequence([
-          Animated.timing(scaleAnim, { toValue: 1.2, duration: 300, useNativeDriver: true }),
-          Animated.timing(scaleAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-        ]).start(() => setHighlightedMemoId(null));
-      }
-    }
-  };
-
-  const saveMemos = async (next: Memo[]) => {
+  const saveMemos = async next => {
     setMemos(next);
     await AsyncStorage.setItem(`memo-board:${folderId}`, JSON.stringify(next));
   };
 
-  const addMemo = (x: number, y: number) => {
+  const addMemo = () => {
     const id = `memo-${Date.now()}`;
-    lastCreatedMemoId = id;
     const timestamp = formatDate();
-    const newMemo: Memo = {
+    const number = memos.length + 1;
+    const newMemo = {
       id,
       content: '',
-      x,
-      y,
-      width: 160,
-      height: 120,
+      number,
       color: PASTEL_COLORS[Math.floor(Math.random() * PASTEL_COLORS.length)],
       pinned: false,
       favorite: false,
+      completed: false,
       timestamp,
     };
     saveMemos([...memos, newMemo]);
-    setTimeout(() => {
-      setActiveInputId(id);
-      inputRefs.current[id]?.focus();
-    }, 100);
   };
 
-  const updateMemo = (id: string, changes: Partial<Memo>) => {
-    const updated = memos.map((m) => (m.id === id ? { ...m, ...changes } : m));
+  const updateMemo = (id, changes) => {
+    const updated = memos.map(m => (m.id === id ? { ...m, ...changes } : m));
     saveMemos(updated);
   };
 
-  const deleteMemo = (id: string) => {
-    saveMemos(memos.filter((m) => m.id !== id));
+  const deleteMemo = id => {
+    saveMemos(memos.filter(m => m.id !== id));
   };
 
-  const handleComplete = (memoId: string) => {
-  const memo = memos.find(m => m.id === memoId);
-  if (!memo) return;
+  const handleComplete = id => {
+    const updated = memos.map(m => (m.id === id ? { ...m, completed: true } : m));
+    saveMemos(updated);
 
-  const today = formatDate().slice(0, 10);
-  const boardMemosToday = memos.filter(m => m.timestamp?.startsWith(today));
-  const boardFirstToday = boardMemosToday.reduce((first, m) =>
-    (!first || m.timestamp < first.timestamp) ? m : first, null as Memo | null);
+    const today = formatDate().slice(0, 10);
+    const todayMemos = updated.filter(m => m.timestamp.slice(0, 10) === today);
+    const firstToday = [...todayMemos].sort((a, b) => a.timestamp.localeCompare(b.timestamp))[0];
 
-  if (boardFirstToday?.id === memoId) {
-    Alert.alert('오늘도 생각이 이어졌어요!');
-  }
-};
+    if (firstToday.id === id) setMessage('오늘도 생각이 이어졌어요!');
+  };
+
+  const scrollToMemo = memoId => {
+    const index = memos.findIndex(m => m.id === memoId);
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: index * 180, animated: true });
+    }
+  };
 
   useEffect(() => {
-    loadMemos();
+    setMessage(`'${folderId}'에 대해서 어떤 생각을 가지고 계신가요?`);
+    AsyncStorage.getItem(`memo-board:${folderId}`).then(data => {
+      if (!data) {
+        setMessage(`'${folderId}'에 대해서 어떤 생각을 가지고 계신가요?`);
+      }
+      if (data) setMemos(JSON.parse(data));
+    });
   }, []);
 
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  const sortedMemos = [...memos].sort((a, b) => (b.pinned - a.pinned || a.timestamp.localeCompare(b.timestamp)));
+
   return (
-    <View style={styles.container}>
-      <TextInput
-        style={styles.searchInput}
-        placeholder="메모 검색..."
-        value={search}
-        onChangeText={setSearch}
-      />
+    <View style={styles.wrapper}>
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backText}>←</Text>
+        </TouchableOpacity>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="메모 검색"
+          value={search}
+          onChangeText={setSearch}
+        />
+        <TouchableOpacity style={styles.favoriteToggle} onPress={() => setFavoritesVisible(!favoritesVisible)}>
+          <Text>{favoritesVisible ? '닫기 ✖' : '즐겨찾기 ⭐'}</Text>
+        </TouchableOpacity>
+      </View>
 
-      {memos.map((memo) => {
-        const isMatch = search.trim() !== '' && memo.content.includes(search.trim());
-        const borderColor = isMatch ? getContrastColor(memo.color) : '#ccc';
-        const isHighlighted = memo.id === highlightedMemoId;
+      {favoritesVisible && (
+        <View style={styles.favoriteList}>
+          {memos.filter(m => m.favorite).sort((a, b) => a.timestamp.localeCompare(b.timestamp)).map(m => (
+            <TouchableOpacity key={m.id} onPress={() => scrollToMemo(m.id)} style={styles.favoriteItem}>
+              <Text style={styles.favoriteItemText}>📌 #{m.number} | {m.timestamp}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
-        const panResponder = memo.pinned
-          ? {}
-          : PanResponder.create({
-              onStartShouldSetPanResponder: () => true,
-              onPanResponderMove: (_, gesture) => {
-                updateMemo(memo.id, {
-                  x: memo.x + gesture.dx,
-                  y: memo.y + gesture.dy,
-                });
-              },
-              onPanResponderRelease: () => {},
-            });
-
-        const resizeResponder = PanResponder.create({
-          onStartShouldSetPanResponder: () => true,
-          onPanResponderMove: (_, gesture) => {
-            updateMemo(memo.id, {
-              width: Math.max(100, memo.width + gesture.dx),
-              height: Math.max(80, memo.height + gesture.dy),
-            });
-          },
-          onPanResponderRelease: () => {},
-        });
-
-        const MemoWrapper = isHighlighted ? Animated.View : View;
-
-        return (
-          <MemoWrapper
-            key={memo.id}
-            {...panResponder.panHandlers}
-            style={[
-              styles.memo,
-              {
-                top: memo.y,
-                left: memo.x,
-                width: memo.width,
-                height: memo.height,
-                backgroundColor: memo.color,
-                borderColor,
-                transform: isHighlighted ? [{ scale: scaleAnim }] : [],
-              },
-            ]}
-          >
-            <View style={styles.header}>
-              <Text style={styles.timestamp}>{memo.timestamp}</Text>
+      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContainer}>
+        {sortedMemos.filter(m => m.content.includes(search)).map((memo) => (
+          <View key={memo.id} style={[styles.memoCard, { backgroundColor: memo.color }, memo.completed && { opacity: 0.6 }]}>
+            <View style={styles.memoHeader}>
+              <Text style={styles.timestamp}>📄 #{memo.number} | {memo.timestamp}</Text>
               <View style={styles.tools}>
                 <TouchableOpacity onPress={() => updateMemo(memo.id, { favorite: !memo.favorite })}>
                   <Text>{memo.favorite ? '★' : '☆'}</Text>
@@ -188,99 +141,141 @@ const MemoBoardScreen = () => {
                 </TouchableOpacity>
               </View>
             </View>
-            <View style={styles.colorPicker}>
-              {PASTEL_COLORS.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.colorDot, { backgroundColor: c }]}
-                  onPress={() => updateMemo(memo.id, { color: c })}
-                />
-              ))}
-            </View>
             <TextInput
-              ref={(ref) => ref && (inputRefs.current[memo.id] = ref)}
-              style={styles.textInput}
+              style={styles.memoContent}
               multiline
+              placeholder="내용을 입력하세요"
               value={memo.content}
-              onChangeText={(text) => updateMemo(memo.id, { content: text })}
+              onChangeText={text => updateMemo(memo.id, { content: text })}
             />
-            <TouchableOpacity style={styles.completeButton} onPress={() => handleComplete(memo.id)}>
-              <Text style={{ color: 'white' }}>완료</Text>
-            </TouchableOpacity>
-            <View {...resizeResponder.panHandlers} style={styles.resizer} />
-          </MemoWrapper>
-        );
-      })}
+            {!memo.completed && (
+              <TouchableOpacity
+                style={styles.completeButton}
+                onPress={() => handleComplete(memo.id)}
+              >
+                <Text style={{ color: 'white' }}>완료</Text>
+              </TouchableOpacity>
+            )}
+            {memo.completed && (
+              <Text style={styles.completedText}>✓ 완료됨</Text>
+            )}
+          </View>
+        ))}
+      </ScrollView>
 
-      <Pressable
-        style={styles.addButton}
-        onPress={() => addMemo(100, 100)}
-      >
+      <TouchableOpacity style={styles.addButton} onPress={addMemo}>
         <Text style={{ fontSize: 24, color: '#fff' }}>＋</Text>
-      </Pressable>
+      </TouchableOpacity>
+
+      {message && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>{message}</Text>
+        </View>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f0f0' },
-  searchInput: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderColor: '#ccc',
-    backgroundColor: '#fff',
+  backButton: {
+    marginRight: 8,
+    padding: 4,
   },
-  memo: {
-    position: 'absolute',
-    borderRadius: 10,
-    padding: 8,
-    borderWidth: 2,
+  backText: {
+    fontSize: 18,
+    color: '#333',
   },
-  header: {
+  wrapper: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+    maxWidth: 480,
+    alignSelf: 'center',
+    width: '100%',
+    paddingTop: 12,
+  },
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingHorizontal: 12,
     alignItems: 'center',
   },
+  searchInput: {
+    flex: 1,
+    marginRight: 8,
+    padding: 8,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderColor: '#ccc',
+    borderWidth: 1,
+  },
+  favoriteToggle: {
+    backgroundColor: '#FFE082',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  favoriteList: {
+    backgroundColor: '#FFF9C4',
+    paddingHorizontal: 16,
+    paddingBottom: 6,
+  },
+  favoriteItem: {
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  favoriteItemText: {
+    fontSize: 15,
+    color: '#6D4C41',
+    fontWeight: 'bold',
+  },
+  scrollContainer: {
+    padding: 12,
+    paddingBottom: 100,
+  },
+  memoCard: {
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#ccc',
+  },
+  memoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
   timestamp: {
-    fontSize: 10,
+    fontSize: 13,
     color: '#444',
   },
   tools: {
     flexDirection: 'row',
     gap: 6,
   },
-  colorPicker: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 4,
-  },
-  colorDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#888',
-    margin: 2,
-  },
-  textInput: {
-    flex: 1,
+  memoContent: {
     fontSize: 14,
-    marginTop: 4,
-    textAlignVertical: 'top',
+    minHeight: 60,
+    marginBottom: 10,
+    color: '#333',
   },
-  resizer: {
-    position: 'absolute',
-    width: 20,
-    height: 20,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#ccc',
-    borderBottomRightRadius: 10,
+  completeButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'center',
+  },
+  completedText: {
+    marginTop: 6,
+    textAlign: 'center',
+    color: '#007AFF',
+    fontWeight: 'bold',
   },
   addButton: {
     position: 'absolute',
-    right: 20,
-    bottom: 30,
+    bottom: 24,
+    right: 24,
     width: 50,
     height: 50,
     backgroundColor: '#007AFF',
@@ -288,13 +283,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  completeButton: {
-    marginTop: 8,
-    backgroundColor: '#007AFF',
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    alignSelf: 'center',
-    borderRadius: 6,
+  toast: {
+    position: 'absolute',
+    bottom: 80,
+    left: '10%',
+    right: '10%',
+    backgroundColor: '#F3E5F5',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  toastText: {
+    color: '#4E3D53',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'serif',
   },
 });
 

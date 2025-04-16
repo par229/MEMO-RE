@@ -1,24 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { navigationRef } from '../navigation/NavigationService';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 
-const LoginScreen = () => {
+const LoginScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = async () => {
-    if (!username.trim()) return;
-
-    await AsyncStorage.setItem('user', username || 'default');
-
-    if (navigationRef.isReady()) {
-      navigationRef.reset({
-        index: 0,
-        routes: [{ name: 'Home' }],
-      });
-    } else {
-      console.warn('navigationRef is not ready');
+  const handleLogin = () => {
+    if (username && password) {
+      navigation.replace('BoardListScreen');
     }
   };
 
@@ -38,29 +27,45 @@ const LoginScreen = () => {
         value={password}
         onChangeText={setPassword}
       />
-      <Button title="로그인" onPress={handleLogin} />
-      <View style={styles.links}>
-        <Text style={styles.linkText} onPress={() => navigationRef.navigate('SignUp')}>
-          회원가입
-        </Text>
-        <Text style={styles.linkText} onPress={() => navigationRef.navigate('ForgotPassword')}>
-          비밀번호 찾기
-        </Text>
-      </View>
+      <TouchableOpacity style={styles.button} onPress={handleLogin}>
+        <Text style={styles.buttonText}>로그인</Text>
+      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
-  title: { fontSize: 28, textAlign: 'center', marginBottom: 20 },
-  input: { borderWidth: 1, padding: 12, marginBottom: 12, borderRadius: 8 },
-  links: { marginTop: 20, alignItems: 'center' },
-  linkText: {
-    color: '#007AFF',
-    marginTop: 8,
-    fontSize: 14,
-    textDecorationLine: 'underline',
+  container: {
+    flex: 1,
+    maxWidth: 1000,
+    alignSelf: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    backgroundColor: '#f9f9f9',
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    marginBottom: 12,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
   },
 });
 
