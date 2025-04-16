@@ -1,17 +1,23 @@
-import { createNavigationContainerRef } from '@react-navigation/native';
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 
-export type RootStackParamList = {
-  Login: undefined;
-  SignUp: undefined;
-  ForgotPassword: undefined;
-  Home: undefined;
-  MemoList: undefined;
-  MemoFolderView: { folderId: string };  // ✅ 추가됨
-  MemoEditor: {
-    folderId: string;
-    memoId?: string;
-    memo?: string;
-  };
+import LoginScreen from './screens/LoginScreen';
+import SignupScreen from './screens/SignupScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
+
+const Stack = createStackNavigator();
+
+const App = () => {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Login">
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Signup" component={SignupScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
 };
 
-export const navigationRef = createNavigationContainerRef<RootStackParamList>();
+export default App;
