@@ -17,20 +17,30 @@ const LoginScreen = () => {
 
   const handleLogin = async () => {
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/login/', {
+      const response = await axios.post('http://192.168.45.48:8000/api/token/', {
         username: email,
         password: password,
       });
-
-      if (response.status === 200) {
-        const userId = response.data.id;
-        Alert.alert('로그인 성공', '환영합니다!');
-        navigation.navigate('BoardList', { userId });
-      }
+  
+      const accessToken = response.data.access;
+      const refreshToken = response.data.refresh;
+  
+      await AsyncStorage.setItem('accessToken', accessToken);
+      await AsyncStorage.setItem('refreshToken', refreshToken);
+      await AsyncStorage.setItem('username', email);
+  
+      Alert.alert('로그인 성공', '환영합니다!');
+      navigation.reset({ index: 0, routes: [{ name: 'BoardList' }] });
+  
     } catch (error: any) {
-      Alert.alert('로그인 실패', error.response?.data?.error || '서버 오류');
+      if (error.response?.status === 401) {
+        Alert.alert('로그인 실패', '아이디 또는 비밀번호가 올바르지 않습니다.');
+      } else {
+        Alert.alert('서버 오류', '서버에 연결할 수 없습니다.');
+      }
     }
   };
+  
 
   return (
     <View style={styles.container}>
@@ -42,6 +52,7 @@ const LoginScreen = () => {
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
+        keyboardType="email-address"
       />
       <TextInput
         placeholder="비밀번호"

@@ -16,14 +16,21 @@ const BoardListScreen = () => {
   const navigation = useNavigation();
   const [boards, setBoards] = useState<string[]>([]);
   const [newBoardName, setNewBoardName] = useState('');
+  const [nickname, setNickname] = useState('');
 
   useEffect(() => {
     loadBoards();
+    loadNickname();
   }, []);
 
   const loadBoards = async () => {
     const data = await AsyncStorage.getItem('board-list');
     if (data) setBoards(JSON.parse(data));
+  };
+
+  const loadNickname = async () => {
+    const name = await AsyncStorage.getItem('username'); // 또는 nickname 키로 저장한 경우 수정
+    if (name) setNickname(name);
   };
 
   const saveBoards = async (list: string[]) => {
@@ -63,8 +70,20 @@ const BoardListScreen = () => {
     navigation.navigate('MemoBoard', { folderId: boardId });
   };
 
+  const handleLogout = async () => {
+    await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'username']);
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+  };
+
   return (
     <View style={styles.container}>
+      <View style={styles.topBar}>
+        <Text style={styles.nickname}>{nickname} 님</Text>
+        <TouchableOpacity onPress={handleLogout}>
+          <Text style={styles.logoutText}>로그아웃</Text>
+        </TouchableOpacity>
+      </View>
+
       <Text style={styles.title}>📋 메모 보드 목록</Text>
       <FlatList
         data={boards}
@@ -96,6 +115,23 @@ export default BoardListScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  nickname: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 12,
+    color: '#555',
+  },
+  logoutText: {
+    fontSize: 14,
+    color: '#e74c3c',
+    fontWeight: 'bold',
+  },
   title: { fontSize: 22, fontWeight: 'bold', marginBottom: 16 },
   input: {
     borderWidth: 1,
